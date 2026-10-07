@@ -13,20 +13,7 @@ MonoBehaviour:
   m_Name: Cigarette
   m_EditorClassIdentifier: 
   upgradeName: Cigarette
-  description: 'Dopamine raises +5%.
-
-
-
-
-
-
-
-
-
-
-
-
-'
+  description: "Adds +5 to maximum dopamine."
   icon: {fileID: 21300000, guid: becdf71a92f4363409f29aa398b5bf07, type: 3}
   rarity: 2
   basePrice: 6

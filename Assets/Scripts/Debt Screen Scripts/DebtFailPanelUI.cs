@@ -144,7 +144,7 @@ public class DebtFailedPanelUI : MonoBehaviour
     public void OnTryAgainPressed()
     {
         Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        SaveJSONData.NewGame();
     }
 
     public void OnQuitPressed()

@@ -5,233 +5,108 @@ using UnityEngine.EventSystems;
 
 public class ShopUpgradeSlot : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
 {
-    [Header("UI")]
     public RawImage backgroundImage;
     public Image iconImage;
     public TMP_Text nameText;
     public Button upgradeButton;
     public GameObject boughtOverlay;
-
-    [Header("Optional Overlay Text")]
-    public TMP_Text overlayText; // put the text inside your overlay here if you have one
-
-    [Header("Rarity Backgrounds")]
-    public Texture commonBackground;
-    public Texture uncommonBackground;
-    public Texture rareBackground;
-    public Texture epicBackground;
-    public Texture legendaryBackground;
-
-    [Header("Current Upgrade")]
+    public TMP_Text overlayText;
+    public Texture commonBackground, uncommonBackground, rareBackground, epicBackground, legendaryBackground;
     public ShopUpgradeData currentUpgrade;
-
-    private string cachedDescription = "";
-    private bool purchased = false;
+    private bool purchased, hovering;
+    public bool IsPurchased => purchased;
 
     void Awake()
     {
-        CacheDescription();
-
+        if (nameText != null)
+        {
+            nameText.enableAutoSizing = true;
+            nameText.fontSizeMax = nameText.fontSize;
+            nameText.fontSizeMin = nameText.fontSize * 0.65f;
+        }
         if (upgradeButton != null)
         {
-            upgradeButton.onClick.RemoveListener(BuyUpgrade);
-            upgradeButton.onClick.AddListener(BuyUpgrade);
+            // Some scenes already wire this method in the Inspector.
+            bool wired = false;
+            for (int i = 0; i < upgradeButton.onClick.GetPersistentEventCount(); i++)
+                if (upgradeButton.onClick.GetPersistentTarget(i) == this &&
+                    upgradeButton.onClick.GetPersistentMethodName(i) == nameof(BuyUpgrade)) wired = true;
+            if (!wired) upgradeButton.onClick.AddListener(BuyUpgrade);
         }
     }
-
     void Update()
     {
-        // keeps duplicate slots updated after one copy gets bought
         RefreshSlotState();
+        if (hovering) ShowHover();
     }
-
+    void OnDisable()
+    {
+        hovering = false;
+        ShopHoverUI.Instance?.HideFor(this);
+    }
     public void SetUpgrade(ShopUpgradeData upgrade)
     {
-        currentUpgrade = upgrade;
-        purchased = false;
-
-        if (currentUpgrade == null)
-        {
-            ClearSlot();
-            return;
-        }
-
-        if (iconImage != null)
-            iconImage.sprite = currentUpgrade.icon;
-
-        if (nameText != null)
-            nameText.text = currentUpgrade.upgradeName;
-
-        if (backgroundImage != null)
-            backgroundImage.texture = GetBackgroundForRarity(currentUpgrade.rarity);
-
-        CacheDescription();
+        currentUpgrade = upgrade; purchased = false;
+        if (upgrade == null) { ClearSlot(); return; }
+        if (iconImage != null) { iconImage.sprite = upgrade.icon; iconImage.enabled = upgrade.icon != null; }
+        if (nameText != null) nameText.text = upgrade.upgradeName;
+        if (backgroundImage != null) backgroundImage.texture = GetBackgroundForRarity(upgrade.rarity);
         RefreshSlotState();
     }
-
+    public void RestorePurchased(bool value) { purchased = value; RefreshSlotState(); }
     public void ClearSlot()
     {
-        currentUpgrade = null;
-        purchased = false;
-        cachedDescription = "";
-
-        if (iconImage != null)
-            iconImage.sprite = null;
-
-        if (nameText != null)
-            nameText.text = "";
-
-        if (backgroundImage != null)
-            backgroundImage.texture = null;
-
-        if (upgradeButton != null)
-            upgradeButton.interactable = false;
-
-        if (boughtOverlay != null)
-            boughtOverlay.SetActive(false);
-
-        if (overlayText != null)
-            overlayText.text = "";
+        currentUpgrade = null; purchased = false;
+        if (iconImage != null) { iconImage.sprite = null; iconImage.enabled = false; }
+        if (nameText != null) nameText.text = "SOLD OUT";
+        if (backgroundImage != null) backgroundImage.texture = null;
+        if (upgradeButton != null) upgradeButton.interactable = false;
+        if (boughtOverlay != null) boughtOverlay.SetActive(false);
+        if (overlayText != null) overlayText.text = "";
     }
-
-    void CacheDescription()
-    {
-        if (currentUpgrade != null && !string.IsNullOrWhiteSpace(currentUpgrade.description))
-            cachedDescription = currentUpgrade.description;
-        else
-            cachedDescription = "";
-    }
-
     Texture GetBackgroundForRarity(UpgradeRarity rarity)
     {
         switch (rarity)
         {
-            case UpgradeRarity.Common: return commonBackground;
             case UpgradeRarity.Uncommon: return uncommonBackground;
             case UpgradeRarity.Rare: return rareBackground;
             case UpgradeRarity.Epic: return epicBackground;
             case UpgradeRarity.Legendary: return legendaryBackground;
+            default: return commonBackground;
         }
-
-        return commonBackground;
     }
-
-    bool IsOwnedInShopManager()
-    {
-        return currentUpgrade != null &&
-               ShopManager.Instance != null &&
-               !currentUpgrade.canBuyMultiple &&
-               ShopManager.Instance.purchasedUpgrades.Contains(currentUpgrade);
-    }
-
-    bool IsDuplicateBlocked()
-    {
-        // another copy is owned, but this exact slot was not the one purchased
-        return !purchased && IsOwnedInShopManager();
-    }
-
+    bool Owned => currentUpgrade != null && !currentUpgrade.canBuyMultiple && ShopManager.Instance != null &&
+        ShopManager.Instance.purchasedUpgrades.Contains(currentUpgrade);
     void RefreshSlotState()
     {
         if (currentUpgrade == null) return;
-
-        bool duplicateBlocked = IsDuplicateBlocked();
-
-        if (upgradeButton != null)
-            upgradeButton.interactable = !purchased && !duplicateBlocked;
-
-        if (boughtOverlay != null)
-            boughtOverlay.SetActive(purchased || duplicateBlocked);
-
-        if (overlayText != null)
-        {
-            if (purchased)
-                overlayText.text = "OWNED";
-            else if (duplicateBlocked)
-                overlayText.text = "NO DUPLICATES";
-            else
-                overlayText.text = "";
-        }
+        bool sold = purchased || Owned;
+        bool available = ShopManager.Instance != null && ShopManager.Instance.CanPurchase(currentUpgrade, out _);
+        if (upgradeButton != null) upgradeButton.interactable = !sold && available && SaveJSONData.Ready;
+        if (boughtOverlay != null) boughtOverlay.SetActive(sold);
+        if (overlayText != null) overlayText.text = sold ? "OWNED" : "";
     }
-
     void ShowHover()
     {
-        if (ShopHoverUI.Instance == null) return;
-        if (currentUpgrade == null) return;
-
-        bool alreadyOwned = IsOwnedInShopManager();
-        bool thisSlotPurchased = purchased;
-        bool duplicateBlocked = IsDuplicateBlocked();
-
-        int scaledPrice = currentUpgrade.basePrice;
-        if (MoneyManager.Instance != null)
-            scaledPrice = MoneyManager.Instance.GetScaledUpgradePrice(currentUpgrade.basePrice);
-
-        bool canAfford = MoneyManager.Instance != null && MoneyManager.Instance.currentCash >= scaledPrice;
-
-        string costLine = "";
-
-        if (thisSlotPurchased)
-        {
-            costLine = "<color=#9A9A9A>OWNED</color>";
-        }
-        else if (duplicateBlocked)
-        {
-            costLine = "<color=#9A9A9A>NO DUPLICATES</color>";
-        }
-        else
-        {
-            string labelColor = "#FFD54A";
-            string valueColor = canAfford ? "#00FF66" : "#FF3B30";
-
-            costLine = "<color=" + labelColor + ">COST:</color> " +
-                       "<color=" + valueColor + ">$" + scaledPrice + "</color>";
-
-            if (!currentUpgrade.canBuyMultiple && !alreadyOwned)
-                costLine += "   <color=#9A9A9A>NO DUPLICATES</color>";
-        }
-
-        ShopHoverUI.Instance.Show(cachedDescription, costLine);
+        if (currentUpgrade == null || ShopHoverUI.Instance == null) return;
+        int price = MoneyManager.Instance != null ? MoneyManager.Instance.GetScaledUpgradePrice(currentUpgrade.basePrice) : currentUpgrade.basePrice;
+        string reason = "UNAVAILABLE";
+        bool allowed = ShopManager.Instance != null && ShopManager.Instance.CanPurchase(currentUpgrade, out reason);
+        string status = purchased || Owned ? "OWNED" : "$" + price + "  /  " + currentUpgrade.rarity.ToString().ToUpperInvariant();
+        string warning = purchased || Owned ? "RESTOCKS NEXT DAY" :
+            !allowed ? reason : currentUpgrade.canBuyMultiple ? "STACKABLE - RESTOCKS DAILY" : "ONE-TIME UNLOCK";
+        if ((purchased || Owned) && !currentUpgrade.canBuyMultiple) warning = "ONE-TIME UNLOCK";
+        ShopHoverUI.Instance.ShowFor(this, currentUpgrade.upgradeName + "\n" + (currentUpgrade.description ?? "").Trim(), status, warning);
     }
-
-    void HideHover()
-    {
-        if (ShopHoverUI.Instance == null) return;
-        ShopHoverUI.Instance.Hide();
-    }
-
-    public void OnPointerEnter(PointerEventData eventData)
-    {
-        ShowHover();
-    }
-
-    public void OnPointerExit(PointerEventData eventData)
-    {
-        HideHover();
-    }
-
-    public void HoverEnter()
-    {
-        ShowHover();
-    }
-
-    public void HoverExit()
-    {
-        HideHover();
-    }
-
+    public void OnPointerEnter(PointerEventData eventData) { HoverEnter(); }
+    public void OnPointerExit(PointerEventData eventData) { HoverExit(); }
+    public void HoverEnter() { hovering = true; ShowHover(); }
+    public void HoverExit() { hovering = false; ShopHoverUI.Instance?.HideFor(this); }
     public void BuyUpgrade()
     {
-        if (currentUpgrade == null || purchased) return;
-        if (IsDuplicateBlocked()) return;
-
-        if (ShopManager.Instance != null)
-        {
-            bool bought = ShopManager.Instance.PurchaseUpgrade(currentUpgrade);
-            if (!bought) return;
-        }
-
+        if (currentUpgrade == null || purchased || Owned || !SaveJSONData.Ready || ShopManager.Instance == null) return;
+        if (!ShopManager.Instance.PurchaseUpgrade(currentUpgrade)) { ShowHover(); return; }
         purchased = true;
-        RefreshSlotState();
-        ShowHover();
+        RefreshSlotState(); ShowHover(); SaveJSONData.SaveProgress();
     }
 }

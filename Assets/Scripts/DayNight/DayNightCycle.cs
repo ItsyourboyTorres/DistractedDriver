@@ -81,7 +81,7 @@ public class DayNightCycle : MonoBehaviour
     {
         if (!dayEnded)
         {
-            if (!timeStopPaused)
+            if (!timeStopPaused && !(FirstDriveTutorial.Instance != null && FirstDriveTutorial.Instance.IsRunning))
             {
                 dayTimer += Time.deltaTime;
 
@@ -238,4 +238,11 @@ public class DayNightCycle : MonoBehaviour
     {
         timeStopPaused = paused;
     }
+    public void RestoreProgress(int day, float progress)
+    {
+        currentDay = Mathf.Max(1, day);
+        dayTimer = Mathf.Clamp01(progress) * dayLengthSeconds;
+        ApplySun(DayProgress01);
+    }
+
 }

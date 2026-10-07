@@ -13,11 +13,11 @@ MonoBehaviour:
   m_Name: Joker
   m_EditorClassIdentifier: 
   upgradeName: Joker
-  description: Copies a random upgrade you already own.
+  description: "Copies an owned stackable upgrade. No extra charge."
   icon: {fileID: 21300000, guid: df69d3690eef00d4db3cf71ef91e85ef, type: 3}
   rarity: 3
   basePrice: 6
-  upgradeType: 0
+  upgradeType: 7
   value: 0
   durationDays: 0
   allowDuplicateInShop: 0

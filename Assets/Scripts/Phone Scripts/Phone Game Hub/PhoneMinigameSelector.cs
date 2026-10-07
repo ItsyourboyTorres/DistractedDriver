@@ -14,6 +14,7 @@ public class PhoneMinigameSelector : MonoBehaviour
 
         [Header("Unlock")]
         public bool unlocked;
+        public bool removed;
     }
 
     [Header("Minigames")]
@@ -29,7 +30,7 @@ public class PhoneMinigameSelector : MonoBehaviour
 
         foreach (MinigameEntry game in minigames)
         {
-            if (game != null && game.unlocked && game.rootObject != null)
+            if (IsPlayable(game))
                 unlockedGames.Add(game);
         }
 
@@ -119,4 +120,32 @@ public class PhoneMinigameSelector : MonoBehaviour
 
         return false;
     }
+    public bool IsPlayable(MinigameEntry entry)
+    {
+        return entry != null && entry.unlocked && !entry.removed && entry.rootObject != null &&
+            entry.gameType == PhoneMinigameType.FlyFlappy && entry.flyFlappyManager != null;
+    }
+    public bool CanRemoveGame => minigames.FindAll(IsPlayable).Count > 1;
+    public bool RemoveRandomPlayableGame()
+    {
+        var candidates = minigames.FindAll(IsPlayable);
+        if (candidates.Count <= 1) return false;
+        var chosen = candidates[Random.Range(0, candidates.Count)];
+        if (CurrentEntry == chosen) { ResetCurrentGame(); HideAllGames(); }
+        chosen.removed = true;
+        return true;
+    }
+    public List<int> CaptureRemovedGames()
+    {
+        var result = new List<int>();
+        for (int i = 0; i < minigames.Count; i++) if (minigames[i] != null && minigames[i].removed) result.Add(i);
+        return result;
+    }
+    public void RestoreRemovedGames(List<int> indexes)
+    {
+        foreach (var entry in minigames) if (entry != null) entry.removed = false;
+        foreach (int i in indexes)
+            if (i >= 0 && i < minigames.Count && minigames[i] != null) minigames[i].removed = true;
+    }
+
 }

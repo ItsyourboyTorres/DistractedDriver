@@ -13,8 +13,7 @@ MonoBehaviour:
   m_Name: ColdTuna
   m_EditorClassIdentifier: 
   upgradeName: Cold Tuna
-  description: Gain +10% dopamine, but passengers might think you smell and dock
-    you stars.
+  description: "Adds +10 to maximum dopamine."
   icon: {fileID: 21300000, guid: fa102cd58bd4b444d84924c49fd8f0e9, type: 3}
   rarity: 0
   basePrice: 6

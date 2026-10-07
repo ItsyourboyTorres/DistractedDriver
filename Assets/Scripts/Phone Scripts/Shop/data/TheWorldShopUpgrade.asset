@@ -13,10 +13,9 @@ MonoBehaviour:
   m_Name: TheWorldShopUpgrade
   m_EditorClassIdentifier: 
   upgradeName: The World
-  description: Stop time for 10 seconds with E, freezing the clock and day cycle
-    until time resumes.
+  description: "Press E to freeze the day clock for 10 seconds. Once per day."
   icon: {fileID: 21300000, guid: 5718782e29e7d064881016227420e4a0, type: 3}
-  rarity: 0
+  rarity: 4
   basePrice: 0
   upgradeType: 5
   value: 0

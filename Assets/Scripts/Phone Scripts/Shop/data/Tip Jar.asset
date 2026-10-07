@@ -13,11 +13,12 @@ MonoBehaviour:
   m_Name: Tip Jar
   m_EditorClassIdentifier: 
   upgradeName: Tip Jar
-  description: Passengers leave slightly better tips, increasing your ride income.
+  description: "Permanently adds +10% to ride fares."
   icon: {fileID: 21300000, guid: fbfa8995b67bbb0408e03db6073d040f, type: 3}
   rarity: 1
-  upgradeType: 4
-  value: 10
+  upgradeType: 3
+  value: 0.1
   durationDays: 0
   allowDuplicateInShop: 0
   canBuyMultiple: 1
+  basePrice: 6

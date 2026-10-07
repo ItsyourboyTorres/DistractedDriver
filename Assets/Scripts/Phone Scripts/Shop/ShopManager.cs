@@ -33,9 +33,19 @@ public class ShopManager : MonoBehaviour
         Instance = this;
     }
 
-    void Start()
+    System.Collections.IEnumerator Start()
     {
-        GenerateShop();
+        // Other managers establish their base stats in Start before restoration.
+        yield return null;
+        SaveJSONData.RestoreProgress(this);
+        if (!RestoreShop()) GenerateShop();
+        if (ShopHoverUI.Instance != null)
+        {
+            var tutorial = ShopHoverUI.Instance.GetComponent<FirstDriveTutorial>();
+            if (tutorial == null) tutorial = ShopHoverUI.Instance.gameObject.AddComponent<FirstDriveTutorial>();
+            tutorial.PrepareStarterPurchase();
+        }
+        SaveJSONData.SaveProgress();
     }
 
     public void GenerateShop()
@@ -77,27 +87,97 @@ public class ShopManager : MonoBehaviour
 
     public bool PurchaseUpgrade(ShopUpgradeData upgrade)
     {
-        if (upgrade == null) return false;
-        if (MoneyManager.Instance == null) return false;
-
-        if (!upgrade.canBuyMultiple && purchasedUpgrades.Contains(upgrade))
+        if (!CanPurchase(upgrade, out string reason)) return false;
+        ShopUpgradeData copied = null;
+        if (upgrade.upgradeType == ShopUpgradeType.Joker)
         {
-            Debug.Log("Already owned: " + upgrade.upgradeName);
-            return false;
+            var candidates = purchasedUpgrades.FindAll(CanCopy);
+            if (candidates.Count == 0) return false;
+            copied = candidates[Random.Range(0, candidates.Count)];
         }
-
         int price = MoneyManager.Instance.GetScaledUpgradePrice(upgrade.basePrice);
-
-        if (!MoneyManager.Instance.SpendCash(price))
+        if (!MoneyManager.Instance.SpendCash(price)) return false;
+        purchasedUpgrades.Add(upgrade);
+        if (copied != null)
         {
-            Debug.Log("Not enough cash for: " + upgrade.upgradeName + " | Need $" + price);
+            // Copy the effect and record it for saving, without a second charge.
+            purchasedUpgrades.Add(copied);
+            ApplyUpgradeEffect(copied);
+        }
+        else ApplyUpgradeEffect(upgrade);
+        SaveJSONData.Progress.tutorialPurchased = true;
+        SaveJSONData.SaveProgress();
+        return true;
+    }
+
+    public bool CanPurchase(ShopUpgradeData upgrade, out string reason)
+    {
+        reason = "";
+        if (upgrade == null) { reason = "NO UPGRADE"; return false; }
+        if (!upgrade.canBuyMultiple && purchasedUpgrades.Contains(upgrade)) { reason = "OWNED"; return false; }
+        if (!EffectAvailable(upgrade))
+        {
+            reason = upgrade.upgradeType == ShopUpgradeType.RemoveMinigame ? "NEEDS TWO PLAYABLE GAMES" :
+                upgrade.upgradeType == ShopUpgradeType.Joker ? "BUY A STACKABLE UPGRADE FIRST" : "UNAVAILABLE";
             return false;
         }
+        if (MoneyManager.Instance == null || MoneyManager.Instance.currentCash < MoneyManager.Instance.GetScaledUpgradePrice(upgrade.basePrice))
+        { reason = "NOT ENOUGH CASH"; return false; }
+        return true;
+    }
 
-        purchasedUpgrades.Add(upgrade);
-        ApplyUpgradeEffect(upgrade);
+    bool CanCopy(ShopUpgradeData u)
+    {
+        return u != null && u.canBuyMultiple && u.upgradeType != ShopUpgradeType.Joker &&
+            u.upgradeType != ShopUpgradeType.RemoveMinigame && EffectAvailable(u);
+    }
 
-        Debug.Log("Purchased upgrade: " + upgrade.upgradeName + " for $" + price);
+    public bool EffectAvailable(ShopUpgradeData u)
+    {
+        if (u == null || u.basePrice < 0) return false;
+        switch (u.upgradeType)
+        {
+            case ShopUpgradeType.CarSpeed: return u.value > 0 && CarController.Instance != null;
+            case ShopUpgradeType.DopamineMax: return u.value > 0 && DopamineManager.Instance != null;
+            case ShopUpgradeType.RideFareMultiplier: return u.value > 0 && TaxiRideManager.Instance != null;
+            case ShopUpgradeType.SurgePricing: return u.value > 0 && u.durationDays > 0 && TaxiRideManager.Instance != null;
+            case ShopUpgradeType.TimeStopUnlock: return PlayerUpgradeState.Instance != null && TimeStopManager.Instance != null;
+            case ShopUpgradeType.RemoveMinigame:
+                return PhoneAppManager.Instance != null && PhoneAppManager.Instance.minigameSelector != null &&
+                    PhoneAppManager.Instance.minigameSelector.CanRemoveGame;
+            case ShopUpgradeType.Joker: return purchasedUpgrades.Exists(CanCopy);
+            default: return false;
+        }
+    }
+
+    public void RestoreOwnedUpgrades(List<string> ids)
+    {
+        purchasedUpgrades.Clear();
+        var all = GetAllUpgrades();
+        foreach (string id in ids)
+        {
+            var u = all.Find(candidate => candidate != null && candidate.name == id);
+            if (u == null) { Debug.LogWarning("Saved upgrade not found: " + id); continue; }
+            purchasedUpgrades.Add(u);
+            // These effects have their own saved state or were already recorded as copies.
+            if (u.upgradeType != ShopUpgradeType.Joker && u.upgradeType != ShopUpgradeType.RemoveMinigame &&
+                u.upgradeType != ShopUpgradeType.SurgePricing) ApplyUpgradeEffect(u);
+        }
+    }
+
+    bool RestoreShop()
+    {
+        var data = SaveJSONData.Progress;
+        if (!data.hasRun || slots == null || data.shopItems == null || data.shopSold == null ||
+            data.shopItems.Count != slots.Length || data.shopSold.Count != slots.Length) return false;
+        var all = GetAllUpgrades();
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i] == null) continue;
+            var upgrade = all.Find(u => u != null && u.name == data.shopItems[i]);
+            slots[i].SetUpgrade(upgrade);
+            slots[i].RestorePurchased(data.shopSold[i]);
+        }
         return true;
     }
 
@@ -174,13 +254,13 @@ public class ShopManager : MonoBehaviour
                 break;
 
             case ShopUpgradeType.RemoveMinigame:
-                if (PlayerUpgradeState.Instance != null)
-                    PlayerUpgradeState.Instance.removeMinigameCharges++;
+                if (PhoneAppManager.Instance != null && PhoneAppManager.Instance.minigameSelector != null)
+                    PhoneAppManager.Instance.minigameSelector.RemoveRandomPlayableGame();
                 break;
 
             case ShopUpgradeType.Joker:
                 if (PlayerUpgradeState.Instance != null)
-                    PlayerUpgradeState.Instance.TriggerJokerCopy();
+                    Debug.Log("Joker copies are applied by the purchase transaction.");
                 break;
         }
     }
@@ -225,7 +305,7 @@ public class ShopManager : MonoBehaviour
         return commonUpgrades;
     }
 
-    List<ShopUpgradeData> GetAllUpgrades()
+    public List<ShopUpgradeData> GetAllUpgrades()
     {
         List<ShopUpgradeData> all = new List<ShopUpgradeData>();
 

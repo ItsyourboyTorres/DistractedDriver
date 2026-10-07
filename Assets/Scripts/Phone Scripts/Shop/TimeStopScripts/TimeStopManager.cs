@@ -65,7 +65,9 @@ public class TimeStopManager : MonoBehaviour
         if (oneUsePerDay && usedThisDay)
             return;
 
-        if (requireUpgrade && playerUpgradeState != null && !playerUpgradeState.hasTimeStop)
+        if (Time.timeScale == 0f) return;
+        if (playerUpgradeState == null) playerUpgradeState = PlayerUpgradeState.Instance;
+        if (requireUpgrade && (playerUpgradeState == null || !playerUpgradeState.hasTimeStop))
             return;
 
         stopRoutine = StartCoroutine(TimeStopRoutine());
@@ -75,6 +77,7 @@ public class TimeStopManager : MonoBehaviour
     {
         isTimeStopped = true;
         usedThisDay = true;
+        SaveJSONData.SaveProgress();
 
         Debug.Log("[TimeStop] ACTIVATED");
 

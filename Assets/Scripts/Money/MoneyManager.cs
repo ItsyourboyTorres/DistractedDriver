@@ -104,7 +104,7 @@ public class MoneyManager : MonoBehaviour
 
     public bool SpendCash(int amount)
     {
-        if (currentCash < amount)
+        if (amount < 0 || currentCash < amount)
             return false;
 
         currentCash -= amount;
@@ -154,4 +154,11 @@ public class MoneyManager : MonoBehaviour
         fareMultiplier = Mathf.Max(0.1f, amount);
         Debug.Log("[Money] Fare multiplier set to: " + fareMultiplier.ToString("0.00") + "x");
     }
+    public void RestoreProgress(int cash, int day)
+    {
+        currentCash = Mathf.Max(0, cash);
+        StartSpecificDay(day);
+        OnCashChanged?.Invoke(currentCash);
+    }
+
 }

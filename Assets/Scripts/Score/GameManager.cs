@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.VFX;
 using TMPro;
 using UnityEngine.SceneManagement;
@@ -167,13 +167,13 @@ public class GameManager : MonoBehaviour
     public void RestartGame()
     {
         Time.timeScale = 1f;
-        Scene current = SceneManager.GetActiveScene();
-        SceneManager.LoadScene(current.buildIndex);
+        SaveJSONData.NewGame();
     }
 
     public void GoToMainMenu()
     {
         Time.timeScale = 1f;
+        SaveJSONData.SaveProgress();
         SceneManager.LoadScene("MainMenu");
     }
 
@@ -188,4 +188,11 @@ public class GameManager : MonoBehaviour
             averageSpeed
         );
     }
+    public void RestoreRideCount(int count)
+    {
+        ridesCompleted = Mathf.Max(0, count);
+        score = ridesCompleted * scorePerRide;
+        UpdateScoreUI();
+    }
+
 }

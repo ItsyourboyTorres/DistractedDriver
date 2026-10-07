@@ -35,6 +35,7 @@ public class PauseMenuUI : MonoBehaviour
 
     public void ShowPauseMenu()
     {
+        SaveJSONData.SaveProgress();
         if (pauseMenuRoot != null)
             pauseMenuRoot.SetActive(true);
 
@@ -82,6 +83,7 @@ public class PauseMenuUI : MonoBehaviour
     public void GoToMainMenu()
     {
         Time.timeScale = 1f;
+        SaveJSONData.SaveProgress();
         SceneManager.LoadScene(mainMenuSceneName);
     }
 

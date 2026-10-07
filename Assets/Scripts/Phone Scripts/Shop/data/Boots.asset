@@ -13,8 +13,7 @@ MonoBehaviour:
   m_Name: Boots
   m_EditorClassIdentifier: 
   upgradeName: Boots
-  description: "Your car gets +2 speed, but it runs a little louder. Hopefully that
-    doesn\u2019t cause any complaints."
+  description: "Adds +2 to your taxi base speed."
   icon: {fileID: 21300000, guid: 4e0a7cd9e6961464f92119d4adfae508, type: 3}
   rarity: 1
   basePrice: 6

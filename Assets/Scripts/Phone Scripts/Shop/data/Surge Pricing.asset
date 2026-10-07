@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: Surge Pricing
   m_EditorClassIdentifier: 
   upgradeName: Surge Pricing
-  description: Increase ride fares for the day, earning more money from every passenger.
+  description: "Adds +25% to ride fares until the next day."
   icon: {fileID: 21300000, guid: 6e8f06b1a838e6641bf07a9cc686a635, type: 3}
   rarity: 0
   basePrice: 6
-  upgradeType: 0
-  value: 0
-  durationDays: 0
+  upgradeType: 4
+  value: 0.25
+  durationDays: 1
   allowDuplicateInShop: 0
   canBuyMultiple: 1

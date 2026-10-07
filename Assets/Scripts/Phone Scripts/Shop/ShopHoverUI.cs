@@ -1,56 +1,74 @@
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
 
 public class ShopHoverUI : MonoBehaviour
 {
     public static ShopHoverUI Instance { get; private set; }
-
-    [Header("UI")]
     public GameObject rootPanel;
-    public TMP_Text descriptionText;
-    public TMP_Text costText;
-    public TMP_Text warningText;
-
-    [TextArea]
-    public string defaultWarning = "Choosing an upgrade will cause a new minigame to appear in the Phone.";
+    public TMP_Text descriptionText, costText, warningText;
+    [TextArea] public string defaultWarning = "";
+    private Object hoverOwner;
+    private string hoverDescription, hoverCost, hoverWarning;
+    private string tutorialDescription, tutorialStatus, tutorialFooter;
+    private bool hasHover;
 
     void Awake()
     {
         Instance = this;
-    }
-
-    void Start()
-    {
-        Hide();
-
-        if (descriptionText != null)
-            descriptionText.alignment = TextAlignmentOptions.Center;
-
-        if (costText != null)
-            costText.alignment = TextAlignmentOptions.Center;
-
-        if (warningText != null)
-            warningText.alignment = TextAlignmentOptions.Center;
-    }
-
-    public void Show(string description, string costLine)
-    {
+        // Keep the actual scene panel, font, size, colors and effective text scale.
+        ConfigureText(descriptionText, 0.06f, 0.60f);
+        ConfigureText(costText, 0.60f, 0.77f);
+        ConfigureText(warningText, 0.80f, 0.97f);
         if (rootPanel != null)
-            rootPanel.SetActive(true);
-
-        if (descriptionText != null)
-            descriptionText.text = description;
-
-        if (costText != null)
-            costText.text = costLine;
-
-        if (warningText != null)
-            warningText.text = defaultWarning;
+            foreach (Graphic graphic in rootPanel.GetComponentsInChildren<Graphic>(true))
+                graphic.raycastTarget = false;
     }
 
-    public void Hide()
+    void ConfigureText(TMP_Text text, float top, float bottom)
     {
-        if (rootPanel != null)
-            rootPanel.SetActive(false);
+        if (text == null || rootPanel == null) return;
+        RectTransform panel = rootPanel.GetComponent<RectTransform>();
+        RectTransform rect = text.rectTransform;
+        float sx = Mathf.Abs(rect.localScale.x), sy = Mathf.Abs(rect.localScale.y);
+        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 1f);
+        rect.pivot = new Vector2(0.5f, 1f);
+        rect.anchoredPosition = new Vector2(0, -panel.rect.height * top);
+        rect.sizeDelta = new Vector2(panel.rect.width * 0.90f / Mathf.Max(sx, 0.001f),
+            panel.rect.height * (bottom - top) / Mathf.Max(sy, 0.001f));
+        text.margin = Vector4.zero;
+        text.alignment = TextAlignmentOptions.Center;
+        text.enableAutoSizing = false;
+        text.overflowMode = TextOverflowModes.Ellipsis;
+    }
+
+    void LateUpdate() { Render(); }
+    public void Show(string description, string costLine) { ShowFor(this, description, costLine, ""); }
+    public void ShowFor(Object owner, string description, string costLine, string warning)
+    {
+        hoverOwner = owner; hasHover = true;
+        hoverDescription = description; hoverCost = costLine; hoverWarning = warning;
+        Render();
+    }
+    public void HideFor(Object owner) { if (hoverOwner == owner) Hide(); }
+    public void Hide() { hoverOwner = null; hasHover = false; Render(); }
+    public void SetTutorial(string description, string status, string footer)
+    {
+        tutorialDescription = description; tutorialStatus = status; tutorialFooter = footer;
+        Render();
+    }
+    void Render()
+    {
+        bool paused = Time.timeScale == 0f || (PauseMenuUI.Instance != null &&
+            PauseMenuUI.Instance.pauseMenuRoot != null && PauseMenuUI.Instance.pauseMenuRoot.activeInHierarchy);
+        bool shopOpen = PhoneAppManager.Instance != null && PhoneAppManager.Instance.CurrentApp == PhoneAppManager.App.Shop;
+        if (!shopOpen) { hasHover = false; hoverOwner = null; }
+        bool hover = hasHover && hoverOwner != null && shopOpen;
+        bool show = !paused && (hover || !string.IsNullOrEmpty(tutorialDescription));
+        if (rootPanel != null && rootPanel.activeSelf != show) rootPanel.SetActive(show);
+        if (!show) return;
+        if (descriptionText != null) descriptionText.text = hover ? hoverDescription : tutorialDescription;
+        if (costText != null) costText.text = hover ? hoverCost : tutorialStatus;
+        if (warningText != null) warningText.text = hover ? hoverWarning : tutorialFooter;
     }
 }

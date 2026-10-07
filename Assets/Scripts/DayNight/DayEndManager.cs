@@ -80,6 +80,9 @@ public class DayEndManager : MonoBehaviour
         if (WorldMusicManager.Instance != null)
             WorldMusicManager.Instance.StartAllMusicSynced();
 
+        TimeStopManager.Instance?.ResetForNewDay();
+        FirstDriveTutorial.Instance?.PrepareStarterPurchase();
+        SaveJSONData.SaveProgress();
         resolvingDayEnd = false;
 
         Debug.Log("[DayEnd] Next day started.");
